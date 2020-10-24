@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Spyder Editor
-
-This is a temporary script file.
-"""
 #!/data/miniconda3/envs/env1/bin/python
 from filelock import FileLock
 import hickle
