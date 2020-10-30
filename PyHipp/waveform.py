@@ -21,7 +21,11 @@ class Waveform(DPT.DPObject):
                                          'mountains', self.channel_filename[0], 'output', 'templates.hkl')
         templates = hkl.load(template_filename)
         self.data = [np.squeeze(templates)]
-        
+        aname = DPT.levels.normpath(os.path.dirname(pwd))
+        self.array_dict = dict()
+        self.array_dict[aname] = 0
+        self.numSets = 1
+        self.current_plot_type = None
         
         # this function will be called once to create this waveform object
         
@@ -68,9 +72,11 @@ class Waveform(DPT.DPObject):
         # this function will be called by processDirs to append the values of certain fields
         # from an extra object (wf) to this object
         # It is useful to store the information of the objects for panning through in the future
-        DPT.DPObject.append(self, wf)  # append self.setidx and self.dirs
+        DPT.DPObject.append(self, wf)
         self.data = self.data + wf.data
-        # .........................................
+        for ar in wf.array_dict:
+            self.array_dict[ar] = self.numSets
+        self.numSets += 1
         
     def plot(self, i = None, ax = None, getNumEvents = False, getLevels = False,\
              getPlotOpts = False, overlay = False, **kwargs):
