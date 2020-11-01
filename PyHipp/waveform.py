@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import hickle as hkl
 import os
 import numpy as np
+from .misc import getChannelInArray
+
 
 class Waveform(DPT.DPObject):
     # Please change the class name according to your needs
@@ -26,6 +28,8 @@ class Waveform(DPT.DPObject):
         self.array_dict[aname] = 0
         self.numSets = 1
         self.current_plot_type = None
+        
+      
         
         # this function will be called once to create this waveform object
         
@@ -80,18 +84,6 @@ class Waveform(DPT.DPObject):
         
     def plot(self, i = None, ax = None, getNumEvents = False, getLevels = False,\
              getPlotOpts = False, overlay = False, **kwargs):
-        # this function will be called in different instances in PanGUI.main
-        # Eg. initially creating the window, right-clicking on the axis and click on any item
-        # input argument:   'i' is the current index in the data list to plot 
-        #                   'ax' is the axis to plot the data in
-        #                   'getNumEvents' is the flag to get the total number of items and the current index of the item to plot, which is 'i'
-        #                   'getLevels' is the flag to get the level that the object is supposed to be created in
-        #                   'getPlotOpts' is the flag to get the plotOpts for creating the menu once we right-click the axis in the figure
-        #                   'kwargs' is the keyward arguments pairs to update plotOpts
-        
-        # plotOpts is a dictionary to store the information that will be shown 
-        # in the menu evoked by right-clicking on the axis after the window is created by PanGUI.create_window
-        # for more information, please check in PanGUI.main.create_menu
 
             
         plotOpts = {'PlotType': DPT.objects.ExclusiveOptions(['Channel', 'Array'], 0), \
@@ -106,15 +98,29 @@ class Waveform(DPT.DPObject):
 
         if getPlotOpts:  # this will be called by PanGUI.main to obtain the plotOpts to create a menu once we right-click on the axis
             return plotOpts 
-
+        
+        if self.current_plot_type is None:
+            self.current_plot_type = plot_type
+            
         if getNumEvents:  
-            # this will be called by PanGUI.main to return two values: 
-            # first value is the total number of items to pan through, 
-            # second value is the current index of the item to plot
-            if plot_type == 'Channel':
-                return self.numSets, i
-            return  # please return two items here: <total-number-of-items-to-plot>, <current-item-index-to-plot>
+            if self.current_plot_type == plot_type:
+                if plot_type == 'Channel':
+                    return self.numSets, i
+                elif plot_type == 'Array':
+                    return len(self.array_dict), i
                 
+            elif self.current_plot_type == 'Array' and plot_type == 'Channel':
+                if i == 0:
+                    return self.numSets, 0
+                else:
+                    return self.numSets, self.array_dict[list(self.array_dict.keys())[i-1]] + 1
+                
+            elif self.current_plot_type == 'Channel' and plot_type == 'Array':
+                self.current_plot_type = 'Array'
+                for idex, (key, value) in enumerate(self.array_dict.items()):
+                    if value >= i:
+                        return len(self.array_dict), idex
+            
         if ax is None:
             ax = plt.gca()
 
@@ -124,23 +130,52 @@ class Waveform(DPT.DPObject):
         ######################################################################
         #################### start plotting ##################################
         ######################################################################
+        advals = np.array([*self.array_dict.values()])
+        
+        fig = ax.figure
         if plot_type == 'Channel':  # plot in channel level
+            if self.current_plot_type == 'Array':
+                self.remove_subplots(fig)
+                ax = fig.add_subplot(1,1,1)
             # plot the mountainsort data according to the current index 'i'
-            y = self.data[i]
-            x = np.arange(y.shape[0])
-            ax.plot(x, y)
-            
-            if not plotOpts['TitleOff']:
-                ax.set_title(self.dirs[i])
-            if not plotOpts['LabelsOff']:
-                ax.set_xlabel('Time (sample unit)')
-                ax.set_ylabel('Voltage (uV)')
-
-                ax.set_xticklabels([])
-                ax.set_yticklabels([])            
+            self.plot_data(i, ax, plotOpts, 1)
+            self.current_plot_type = "Channel"
+        elif plot_type == 'Array':
+            self.remove_subplots(fig)
+            advals = np.array([*self.array_dict.values()])
+            if i == 0:
+                cstart = 0
+                cend = advals[0]
+            else:
+                cstart = advals[i-1] + 1
+                cend = advals[i]
+            currch = cstart
+            while currch <= cend:
+                currchname = self.dirs[currch]
+                ax, isCorner = getChannelInArray(currchname, fig)
+                self.plot_data(currch, ax, plotOpts, isCorner)
+                currch += 1                 
         return ax
     
-    
+    def plot_data(self, i, ax, plotOpts, isCorner):
+        y = self.data[i]
+        x = np.arange(y.shape[0])
+        ax.plot(x, y)
+        
+        if not plotOpts['TitleOff']:
+            ax.set_title(self.dirs[i])
+            
+        if (not plotOpts['LabelsOff']) or isCorner:
+            ax.set_xlabel('Time (sample unit)')
+            ax.set_ylabel('Voltage (uV)')
+            
+        if not isCorner:
+            ax.set_xticklabels([])
+            ax.set_yticklabels([])
+            
+    def remove_subplots(self, fig):
+        for x in fig.get_axes(): # remove all axes in current figure
+            x.remove()
     
     #%% helper functions        
     # Please make use of the properties of the OOP to call and edit the field-value
