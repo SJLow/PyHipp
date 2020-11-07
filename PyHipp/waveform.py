@@ -88,9 +88,9 @@ class Waveform(DPT.DPObject):
 
         # The following is some hints of the things-to-do:
         # get current channel name
-        pwd = os.path.normpath(os.getcwd());
-        self.channel_filename = [os.path.basename(pwd)]  # 'channelxxx, xxx is the number of the channel'
-        self.read_templates()  # read the mountainsort template files
+            pwd = os.path.normpath(os.getcwd());
+            self.channel_filename = [os.path.basename(pwd)]  # 'channelxxx, xxx is the number of the channel'
+            self.read_templates()  # read the mountainsort template files
         
         # check on the mountainsort template data and create a DPT object accordingly
         if self.data[0].all():
